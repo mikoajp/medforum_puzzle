@@ -1,15 +1,15 @@
 <template>
   <div class="game-question">
     <h2>Pytanie przed poziomem {{ nextLevel }}</h2>
-    <div class="question-text">{{ question.question }}</div>
+    <div class="question-text" v-html="question.question"></div>
     <div class="answers">
       <div
         v-for="answer in question.answers"
         :key="answer.id"
         class="answer"
         @click="selectAnswer(answer.id)"
+        v-html="formatAnswer(answer)"
       >
-        {{ answer.text }}
       </div>
     </div>
   </div>
@@ -30,6 +30,14 @@ export default {
   methods: {
     selectAnswer (answerId) {
       this.$emit('answer-selected', answerId)
+    },
+    formatAnswer (answer) {
+      // Jeśli odpowiedź już zawiera HTML, zwracamy ją bezpośrednio
+      if (answer.text.includes('<')) {
+        return answer.text
+      }
+      // W przeciwnym razie formatujemy odpowiedź w spójny sposób
+      return `<b>${answer.id}.</b> ${answer.text}`
     }
   }
 }
@@ -49,6 +57,7 @@ export default {
   padding: 15px;
   background: #f5f5f5;
   border-radius: 5px;
+  text-align: left;
 }
 
 .answers {
@@ -65,9 +74,19 @@ export default {
   border-radius: 5px;
   cursor: pointer;
   transition: background 0.2s;
+  text-align: left;
 }
 
 .answer:hover {
   background: #369f6e;
+}
+
+/* To jest trick aby style z v-html działały */
+::v-deep div[style] {
+  display: block;
+}
+
+::v-deep b {
+  font-weight: bold;
 }
 </style>

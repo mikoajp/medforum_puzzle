@@ -63,48 +63,33 @@ const actions = {
 
     commit('SET_CAMPAIGN', campaignData)
 
-    // Pobierz pytania (mock)
+    // Pobierz pytania z API
     try {
-      const questions = [
-        {
-          id: 1,
-          question: 'Czy wskazaniem do stosowania leku Azelin jest:',
-          answers: [
-            { id: 1, text: 'Zapalenie spojówki alericznym sezonowym' },
-            { id: 2, text: 'Zapalenie spojówki alergicznym odpornościowo' },
-            { id: 3, text: 'Zapalenie spojówki nieżytowe' },
-            { id: 4, text: 'Zapalenie spojówki bakteryjne' }
-          ],
-          correct_answer_id: 1
-        },
-        {
-          id: 2,
-          question: 'Kiedy można stosować lek Azelin?',
-          answers: [
-            { id: 5, text: 'U osób poniżej 4 roku życia' },
-            { id: 6, text: 'U dzieci w wieku od 4 lat i dorosłych' },
-            { id: 7, text: 'Tylko u osób dorosłych' }
-          ],
-          correct_answer_id: 6
-        },
-        {
-          id: 3,
-          question: 'Jak często należy stosować lek Azelin?',
-          answers: [
-            { id: 8, text: 'Raz dziennie' },
-            { id: 9, text: 'Dwa razy dziennie' },
-            { id: 10, text: 'Trzy razy dziennie' },
-            { id: 11, text: 'Cztery razy dziennie' }
-          ],
-          correct_answer_id: 9
-        }
-      ]
-      commit('SET_QUESTIONS', questions)
-    } catch (error) {
-      console.error('Error loading questions:', error)
-    }
+      const response = await fetch('https://api.medforum.pl/dyskusjemedyczne/games/35/questions')
+      if (!response.ok) {
+        throw new Error('Problem z pobraniem pytań z API')
+      }
 
-    // Wczytaj postęp użytkownika z localStorage
+      const questionData = await response.json()
+      const formattedQuestions = questionData.map(q => {
+        return {
+          id: q.id || Math.random().toString(36).substr(2, 9),
+          question: q.question,
+          answers: q.answers.map(a => ({
+            id: a.answer,
+            text: a.answer,
+            correct: a.correct
+          })),
+          correct_answer_id: q.answers.find(a => a.correct).answer
+        }
+      })
+
+      console.log('Pobrano pytania z API:', formattedQuestions)
+      commit('SET_QUESTIONS', formattedQuestions)
+    } catch (error) {
+      console.error('Błąd podczas pobierania pytań z API:', error)
+      commit('SET_QUESTIONS', [])
+    }
     const savedProgress = localStorage.getItem('puzzleProgress')
     if (savedProgress) {
       commit('SET_USER_PROGRESS', JSON.parse(savedProgress))
@@ -126,7 +111,6 @@ const actions = {
   },
 
   handleLevelCompletion ({ commit, state, dispatch }, levelData) {
-    // Zapisz ukończony poziom z danymi statystycznymi
     const level = levelData.level || levelData
     const stats = levelData.stats || { time: 0, moves: 0 }
 
@@ -142,22 +126,24 @@ const actions = {
 
     commit('SET_USER_PROGRESS', progress)
     localStorage.setItem('puzzleProgress', JSON.stringify(progress))
-
-    // Sprawdź czy to ostatni poziom
-    if (level.level === state.campaign.levels.length) {
-      // Gra zakończona
+    if (level === state.campaign.levels.length) {
       setTimeout(() => {
         alert('Gratulacje! Ukończyłeś wszystkie poziomy!')
         commit('SET_GAME_STARTED', false)
       }, 500)
       return
     }
-
-    // Pokaż pytanie przed następnym poziomem
-    const randomIndex = Math.floor(Math.random() * state.questions.length)
-    const randomQuestion = state.questions[randomIndex]
-    commit('SET_CURRENT_QUESTION', randomQuestion)
-    commit('SET_SHOW_QUESTION', true)
+    if (state.questions.length > 0) {
+      const randomIndex = Math.floor(Math.random() * state.questions.length)
+      const randomQuestion = state.questions[randomIndex]
+      commit('SET_CURRENT_QUESTION', randomQuestion)
+      commit('SET_SHOW_QUESTION', true)
+      const updatedQuestions = [...state.questions]
+      updatedQuestions.splice(randomIndex, 1)
+      commit('SET_QUESTIONS', updatedQuestions)
+    } else {
+      dispatch('moveToNextLevel')
+    }
   },
 
   handleAnswer ({ commit, state, dispatch }, answerId) {
@@ -166,7 +152,6 @@ const actions = {
     const isCorrect = answerId === state.currentQuestion.correct_answer_id
 
     if (isCorrect) {
-      // Aktualizuj liczbę poprawnych odpowiedzi
       const progress = {
         ...state.userProgress,
         correctAnswers: (state.userProgress.correctAnswers || 0) + 1
@@ -175,12 +160,7 @@ const actions = {
       localStorage.setItem('puzzleProgress', JSON.stringify(progress))
 
       // Przejdź do następnego poziomu
-      const currentLevelIndex = state.campaign.levels.findIndex(
-        l => l.level === state.currentLevel.level
-      )
-      const nextLevel = state.campaign.levels[currentLevelIndex + 1]
-      commit('SET_CURRENT_LEVEL', nextLevel)
-      commit('SET_SHOW_FULL_IMAGE', true)
+      dispatch('moveToNextLevel')
     } else {
       // Błędna odpowiedź - koniec gry
       setTimeout(() => {
@@ -188,6 +168,20 @@ const actions = {
         commit('SET_GAME_STARTED', false)
       }, 500)
     }
+  },
+
+  moveToNextLevel ({ commit, state }) {
+    // Przejdź do następnego poziomu
+    const currentLevelIndex = state.campaign.levels.findIndex(
+      l => l.level === state.currentLevel.level
+    )
+    const nextLevel = state.campaign.levels[currentLevelIndex + 1]
+    commit('SET_CURRENT_LEVEL', nextLevel)
+    commit('SET_SHOW_FULL_IMAGE', true)
+
+    setTimeout(() => {
+      commit('SET_SHOW_FULL_IMAGE', false)
+    }, state.previewTime)
   }
 }
 
