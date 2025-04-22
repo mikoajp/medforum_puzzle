@@ -37,7 +37,6 @@ export default {
     pieceStyle () {
       const gridSize = Math.sqrt(this.$parent.level.elements)
 
-      // Calculate which part of the image to show based on the piece's correct position
       const row = Math.floor(this.piece.correctPosition / gridSize)
       const col = this.piece.correctPosition % gridSize
 
@@ -57,38 +56,27 @@ export default {
     onDragStart (event) {
       this.isDragging = true
 
-      // Set the drag data (the piece ID)
       event.dataTransfer.setData('application/json', JSON.stringify({
         pieceId: this.piece.id
       }))
 
-      // For better visual feedback
       event.dataTransfer.effectAllowed = 'move'
 
-      // Need to disable some default Vue.js handling
       event.stopPropagation()
 
-      // Let the parent know we're dragging this piece
       this.$parent.startDrag(this.piece)
-
-      console.log(`Started dragging piece ${this.piece.id} from position ${this.piece.position}`)
     },
     onDragEnd () {
       this.isDragging = false
-      console.log(`Ended drag for piece ${this.piece.id}`)
     },
     onDrop (event) {
       event.preventDefault()
       event.stopPropagation()
 
       try {
-        // Get the dragged piece ID
         const data = JSON.parse(event.dataTransfer.getData('application/json'))
         const draggedPieceId = data.pieceId
 
-        console.log(`Dropped piece ${draggedPieceId} onto piece ${this.piece.id}`)
-
-        // Tell the parent to finish the drag operation
         this.$parent.finishDrag(this.piece, draggedPieceId)
       } catch (error) {
         console.error('Error processing drop:', error)

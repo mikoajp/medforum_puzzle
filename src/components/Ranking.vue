@@ -46,7 +46,6 @@ export default {
       return this.userProgress.correctAnswers || 0
     },
     totalQuestions () {
-      // In a real implementation, this could come from the store
       return this.completedLevels.length - 1
     }
   },
@@ -58,7 +57,6 @@ export default {
       return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
     },
     playAgain () {
-      // Clear progress and start a new game
       localStorage.removeItem('puzzleProgress')
       this.SET_GAME_STARTED(false)
     }

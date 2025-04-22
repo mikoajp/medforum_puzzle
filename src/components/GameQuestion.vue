@@ -32,11 +32,9 @@ export default {
       this.$emit('answer-selected', answerId)
     },
     formatAnswer (answer) {
-      // Jeśli odpowiedź już zawiera HTML, zwracamy ją bezpośrednio
       if (answer.text.includes('<')) {
         return answer.text
       }
-      // W przeciwnym razie formatujemy odpowiedź w spójny sposób
       return `<b>${answer.id}.</b> ${answer.text}`
     }
   }

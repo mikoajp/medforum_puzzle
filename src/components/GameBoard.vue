@@ -16,12 +16,18 @@
       >
         <div
           class="puzzle-piece"
-          :class="{ 'selected': selectedPiece && selectedPiece.id === piece.id }"
+          :class="{
+            'selected': selectedPiece && selectedPiece.id === piece.id,
+            'dragging': piece.isDragging,
+            'drag-over': piece.isDragOver
+          }"
           :style="getPieceBackground(piece)"
           draggable="true"
           @dragstart="dragStart($event, piece)"
-          @dragover.prevent
+          @dragover.prevent="dragOver($event, piece)"
+          @dragleave="dragLeave($event, piece)"
           @drop="drop($event, piece)"
+          @dragend="dragEnd"
           @click="clickPiece(piece)"
         ></div>
       </div>
@@ -47,7 +53,8 @@ export default {
       moveCount: 0,
       startTime: Date.now(),
       elapsedTime: 0,
-      timer: null
+      timer: null,
+      draggedPiece: null
     }
   },
   created () {
@@ -61,50 +68,39 @@ export default {
   },
   methods: {
     initPuzzle () {
-      // Calculate grid size based on elements
       this.gridSize = Math.sqrt(this.level.elements)
 
-      // Create the pieces
       this.pieces = []
       for (let i = 0; i < this.level.elements; i++) {
         this.pieces.push({
           id: i,
           correctPosition: i,
           currentPosition: i,
-          image: this.level.image
+          image: this.level.image,
+          isDragging: false,
+          isDragOver: false
         })
       }
 
-      // Shuffle the pieces
       this.shufflePieces()
-
-      console.log('Puzzle initialized with', this.pieces.length, 'pieces')
     },
 
     shufflePieces () {
-      // Create an array of positions
       const positions = Array.from({ length: this.pieces.length }, (_, i) => i)
 
-      // Shuffle the positions using Fisher-Yates
       for (let i = positions.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [positions[i], positions[j]] = [positions[j], positions[i]]
       }
 
-      // Assign the shuffled positions to pieces
       this.pieces.forEach((piece, index) => {
         piece.currentPosition = positions[index]
       })
 
-      // Make sure the puzzle isn't accidentally solved
       if (this.checkCompletion()) {
-        console.log('Puzzle was already solved after shuffle, reshuffling...')
         this.shufflePieces()
-      } else {
-        console.log('Pieces shuffled successfully')
       }
 
-      // Reset move counter
       this.moveCount = 0
     },
 
@@ -112,17 +108,14 @@ export default {
       this.shufflePieces()
       this.selectedPiece = null
 
-      // Reset timer
       this.stopTimer()
       this.startTimer()
     },
 
     getPiecePosition (piece) {
-      // Calculate row and column based on current position
       const row = Math.floor(piece.currentPosition / this.gridSize)
       const col = piece.currentPosition % this.gridSize
 
-      // Calculate percentage positions
       const top = (row * 100 / this.gridSize) + '%'
       const left = (col * 100 / this.gridSize) + '%'
       const width = (100 / this.gridSize) + '%'
@@ -138,7 +131,6 @@ export default {
     },
 
     getPieceBackground (piece) {
-      // Calculate which part of the image to show based on correct position
       const row = Math.floor(piece.correctPosition / this.gridSize)
       const col = piece.correctPosition % this.gridSize
 
@@ -151,31 +143,33 @@ export default {
 
     clickPiece (piece) {
       if (!this.selectedPiece) {
-        // First piece selected
         this.selectedPiece = piece
-        console.log('Selected piece', piece.id)
       } else if (this.selectedPiece.id === piece.id) {
-        // Clicked the same piece twice, deselect it
         this.selectedPiece = null
-        console.log('Deselected piece')
       } else {
-        // Second piece selected, swap them
         this.swapPieces(this.selectedPiece, piece)
         this.selectedPiece = null
       }
     },
 
     dragStart (event, piece) {
-      // Set the piece ID as the drag data
       event.dataTransfer.setData('text/plain', piece.id)
 
-      // For better UI feedback during drag
       setTimeout(() => {
         piece.isDragging = true
+        this.draggedPiece = piece
         this.selectedPiece = piece
       }, 0)
+    },
 
-      console.log('Started dragging piece', piece.id)
+    dragOver (event, piece) {
+      if (this.draggedPiece && this.draggedPiece.id !== piece.id) {
+        piece.isDragOver = true
+      }
+    },
+
+    dragLeave (event, piece) {
+      piece.isDragOver = false
     },
 
     drop (event, targetPiece) {
@@ -183,31 +177,28 @@ export default {
       const draggedPiece = this.pieces.find(p => p.id === draggedPieceId)
 
       if (draggedPiece && draggedPiece.id !== targetPiece.id) {
-        // Swap the pieces
         this.swapPieces(draggedPiece, targetPiece)
       }
 
-      // Reset dragging state
+      this.dragEnd()
+    },
+
+    dragEnd () {
       this.pieces.forEach(p => {
         p.isDragging = false
+        p.isDragOver = false
       })
-
+      this.draggedPiece = null
       this.selectedPiece = null
-      console.log('Dropped piece', draggedPieceId, 'onto', targetPiece.id)
     },
 
     swapPieces (piece1, piece2) {
-      // Swap the current positions
       const tempPosition = piece1.currentPosition
       piece1.currentPosition = piece2.currentPosition
       piece2.currentPosition = tempPosition
 
-      // Increment move counter
       this.moveCount++
 
-      console.log(`Swapped piece ${piece1.id} with ${piece2.id}`)
-
-      // Check if puzzle is completed
       if (this.checkCompletion()) {
         this.handleCompletion()
       }
@@ -218,10 +209,8 @@ export default {
     },
 
     handleCompletion () {
-      console.log('Puzzle completed!')
       this.stopTimer()
 
-      // Emit completion event to parent with stats
       this.$emit('level-completed', {
         ...this.level,
         stats: {
@@ -287,7 +276,6 @@ export default {
   border: 2px solid #ddd;
   border-radius: 5px;
   overflow: hidden;
-  /* Make the container square regardless of screen size */
   aspect-ratio: 1/1;
 }
 
@@ -318,8 +306,20 @@ export default {
 .puzzle-piece.selected {
   border: 2px solid #42b983;
   transform: scale(0.95);
-  box-shadow: 0 0 8px rgba(66, 185, 131, 0.5);
   z-index: 5;
+}
+
+.puzzle-piece.dragging {
+  opacity: 0.7;
+  transform: scale(0.95);
+  z-index: 100;
+}
+
+.puzzle-piece.drag-over {
+  border: 2px solid #42b983;
+  opacity: 1;
+  z-index: 20;
+  box-shadow: 0 0 10px rgba(66, 185, 131, 0.7);
 }
 
 .shuffle-button {

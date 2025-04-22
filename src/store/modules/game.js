@@ -1,3 +1,5 @@
+import apiService from '../../service/api-service'
+
 const state = {
   campaign: null,
   loading: true,
@@ -8,7 +10,7 @@ const state = {
   currentQuestion: null,
   userProgress: {},
   questions: [],
-  previewTime: 3000 // 3 sekundy podglądu
+  previewTime: 3000 // 3 seconds preview
 }
 
 const mutations = {
@@ -45,59 +47,19 @@ const actions = {
   async initGame ({ commit, state, dispatch }) {
     commit('SET_LOADING', true)
 
-    // Mock danych kampanii
-    const campaignData = {
-      id: 1,
-      title: 'Puzzle',
-      date_start: '2025-02-16 00:00:00',
-      date_end: '2025-05-30 23:59:59',
-      levels: [
-        { level: 1, image: 'https://picsum.photos/600/600?random=1', elements: 9 },
-        { level: 2, image: 'https://picsum.photos/600/600?random=2', elements: 9 },
-        { level: 3, image: 'https://picsum.photos/600/600?random=3', elements: 16 },
-        { level: 4, image: 'https://picsum.photos/600/600?random=4', elements: 16 },
-        { level: 5, image: 'https://picsum.photos/600/600?random=5', elements: 25 },
-        { level: 6, image: 'https://picsum.photos/600/600?random=6', elements: 25 }
-      ]
-    }
-
-    commit('SET_CAMPAIGN', campaignData)
-
-    // Pobierz pytania z API
     try {
-      const response = await fetch('https://api.medforum.pl/dyskusjemedyczne/games/35/questions')
-      if (!response.ok) {
-        throw new Error('Problem z pobraniem pytań z API')
-      }
+      const campaignData = await apiService.getCampaignData()
+      commit('SET_CAMPAIGN', campaignData)
 
-      const questionData = await response.json()
-      const formattedQuestions = questionData.map(q => {
-        return {
-          id: q.id || Math.random().toString(36).substr(2, 9),
-          question: q.question,
-          answers: q.answers.map(a => ({
-            id: a.answer,
-            text: a.answer,
-            correct: a.correct
-          })),
-          correct_answer_id: q.answers.find(a => a.correct).answer
-        }
-      })
+      const questions = await apiService.getQuestions(35) // Game ID is hardcoded as 35
+      commit('SET_QUESTIONS', questions)
 
-      console.log('Pobrano pytania z API:', formattedQuestions)
-      commit('SET_QUESTIONS', formattedQuestions)
+      const userProgress = apiService.getUserProgress()
+      commit('SET_USER_PROGRESS', userProgress)
     } catch (error) {
-      console.error('Błąd podczas pobierania pytań z API:', error)
-      commit('SET_QUESTIONS', [])
+    } finally {
+      commit('SET_LOADING', false)
     }
-    const savedProgress = localStorage.getItem('puzzleProgress')
-    if (savedProgress) {
-      commit('SET_USER_PROGRESS', JSON.parse(savedProgress))
-    } else {
-      commit('SET_USER_PROGRESS', { correctAnswers: 0 })
-    }
-
-    commit('SET_LOADING', false)
   },
 
   startNewGame ({ commit, state }) {
@@ -125,14 +87,15 @@ const actions = {
     }
 
     commit('SET_USER_PROGRESS', progress)
-    localStorage.setItem('puzzleProgress', JSON.stringify(progress))
+    apiService.saveUserProgress(progress)
+
     if (level === state.campaign.levels.length) {
       setTimeout(() => {
-        alert('Gratulacje! Ukończyłeś wszystkie poziomy!')
         commit('SET_GAME_STARTED', false)
       }, 500)
       return
     }
+
     if (state.questions.length > 0) {
       const randomIndex = Math.floor(Math.random() * state.questions.length)
       const randomQuestion = state.questions[randomIndex]
@@ -157,21 +120,17 @@ const actions = {
         correctAnswers: (state.userProgress.correctAnswers || 0) + 1
       }
       commit('SET_USER_PROGRESS', progress)
-      localStorage.setItem('puzzleProgress', JSON.stringify(progress))
+      apiService.saveUserProgress(progress)
 
-      // Przejdź do następnego poziomu
       dispatch('moveToNextLevel')
     } else {
-      // Błędna odpowiedź - koniec gry
       setTimeout(() => {
-        alert('Niestety, błędna odpowiedź. Gra zakończona.')
         commit('SET_GAME_STARTED', false)
       }, 500)
     }
   },
 
   moveToNextLevel ({ commit, state }) {
-    // Przejdź do następnego poziomu
     const currentLevelIndex = state.campaign.levels.findIndex(
       l => l.level === state.currentLevel.level
     )
