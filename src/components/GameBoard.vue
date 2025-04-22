@@ -3,8 +3,8 @@
     <h2>Poziom {{ level.level }}</h2>
 
     <div class="game-info">
-      <div class="moves-counter">Ruchy: {{ moveCount }}</div>
-      <div class="timer">Czas: {{ formatTime(elapsedTime) }}</div>
+      <div class="moves-counter">Ruchy: {{ gameLogic.moveCount }}</div>
+      <div class="timer">Czas: {{ formattedTime }}</div>
     </div>
 
     <div
@@ -14,20 +14,20 @@
       @mouseleave="handleMouseLeave"
     >
       <div
-        v-for="piece in pieces"
+        v-for="piece in gameLogic.pieces"
         :key="piece.id"
         class="piece-wrapper"
-        :style="getPiecePosition(piece)"
+        :style="getPiecePositionStyle(piece)"
       >
         <div
           class="puzzle-piece"
           :class="{
-            'selected': selectedPiece && selectedPiece.id === piece.id,
+            'selected': selectionService.getSelectedPiece() && selectionService.getSelectedPiece().id === piece.id,
             'dragging': piece.isDragging,
             'drag-over': piece.isDragOver,
-            'hover-effect': hoverPiece && hoverPiece.id === piece.id
+            'hover-effect': dragService.getHoverPiece() && dragService.getHoverPiece().id === piece.id
           }"
-          :style="getPieceBackground(piece)"
+          :style="getPieceBackgroundStyle(piece)"
           @mousedown="startDrag($event, piece)"
           @mouseup="dropPiece(piece)"
           @click="clickPiece(piece)"
@@ -35,9 +35,9 @@
       </div>
 
       <div
-        v-if="dragVisual.active"
+        v-if="dragService.getDragVisual().active"
         class="drag-visual"
-        :style="dragVisual.style"
+        :style="dragService.getDragVisual().style"
       ></div>
     </div>
 
@@ -46,6 +46,11 @@
 </template>
 
 <script>
+import GameLogic from '@/service/game-service'
+import DragService from '@/service/drag-service'
+import SelectionService from '@/service/selection-service'
+import TimerService from '@/service/timer-service'
+
 export default {
   props: {
     level: {
@@ -55,33 +60,18 @@ export default {
   },
   data () {
     return {
-      pieces: [],
-      selectedPiece: null,
-      gridSize: 3,
-      moveCount: 0,
-      startTime: Date.now(),
-      elapsedTime: 0,
-      timer: null,
-      draggedPiece: null,
-      hoverPiece: null,
-      isDragging: false,
-      dragVisual: {
-        active: false,
-        style: {}
-      },
-      mousePosition: {
-        x: 0,
-        y: 0
-      },
-      dragOffset: {
-        x: 0,
-        y: 0
-      },
-      containerRect: null
+      gameLogic: null,
+      dragService: null,
+      selectionService: null,
+      timerService: null,
+      formattedTime: '0:00'
     }
   },
   created () {
-    this.initPuzzle()
+    this.gameLogic = new GameLogic(this.level)
+    this.dragService = new DragService()
+    this.selectionService = new SelectionService()
+    this.timerService = new TimerService()
   },
   mounted () {
     this.startTimer()
@@ -92,243 +82,113 @@ export default {
     window.removeEventListener('mouseup', this.endDrag)
   },
   methods: {
-    initPuzzle () {
-      this.gridSize = Math.sqrt(this.level.elements)
-
-      this.pieces = []
-      for (let i = 0; i < this.level.elements; i++) {
-        this.pieces.push({
-          id: i,
-          correctPosition: i,
-          currentPosition: i,
-          image: this.level.image,
-          isDragging: false,
-          isDragOver: false
-        })
-      }
-
-      this.shufflePieces()
-    },
-
-    shufflePieces () {
-      const positions = Array.from({ length: this.pieces.length }, (_, i) => i)
-
-      for (let i = positions.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [positions[i], positions[j]] = [positions[j], positions[i]]
-      }
-
-      this.pieces.forEach((piece, index) => {
-        piece.currentPosition = positions[index]
-      })
-
-      if (this.checkCompletion()) {
-        this.shufflePieces()
-      }
-
-      this.moveCount = 0
-    },
-
     reShufflePieces () {
-      this.shufflePieces()
-      this.selectedPiece = null
-
-      this.stopTimer()
-      this.startTimer()
+      this.gameLogic.shufflePieces()
+      this.selectionService.clearSelection()
+      this.timerService.restartTimer(this.updateFormattedTime)
     },
 
-    getPiecePosition (piece) {
-      const row = Math.floor(piece.currentPosition / this.gridSize)
-      const col = piece.currentPosition % this.gridSize
-
-      const top = (row * 100 / this.gridSize) + '%'
-      const left = (col * 100 / this.gridSize) + '%'
-      const width = (100 / this.gridSize) + '%'
-      const height = (100 / this.gridSize) + '%'
+    getPiecePositionStyle (piece) {
+      const position = this.gameLogic.getPiecePosition(piece)
 
       return {
         position: 'absolute',
-        top,
-        left,
-        width,
-        height
+        top: position.top,
+        left: position.left,
+        width: position.width,
+        height: position.height
       }
     },
 
-    getPieceBackground (piece) {
-      const row = Math.floor(piece.correctPosition / this.gridSize)
-      const col = piece.correctPosition % this.gridSize
+    getPieceBackgroundStyle (piece) {
+      const background = this.gameLogic.getPieceBackground(piece)
 
       return {
-        backgroundImage: `url(${piece.image})`,
-        backgroundSize: `${this.gridSize * 100}% ${this.gridSize * 100}%`,
-        backgroundPosition: `${(col / (this.gridSize - 1)) * 100}% ${(row / (this.gridSize - 1)) * 100}%`
+        backgroundImage: `url(${background.image})`,
+        backgroundSize: background.backgroundSize,
+        backgroundPosition: background.backgroundPosition
       }
     },
 
     clickPiece (piece) {
-      if (!this.selectedPiece) {
-        this.selectedPiece = piece
-      } else if (this.selectedPiece.id === piece.id) {
-        this.selectedPiece = null
-      } else {
-        this.swapPieces(this.selectedPiece, piece)
-        this.selectedPiece = null
-      }
-    },
+      const result = this.selectionService.handlePieceSelection(piece, this.gameLogic)
 
-    startDrag (event, piece) {
-      this.containerRect = this.$refs.puzzleContainer.getBoundingClientRect()
-
-      const pieceElement = event.target
-      const pieceRect = pieceElement.getBoundingClientRect()
-
-      this.dragOffset.x = event.clientX - pieceRect.left
-      this.dragOffset.y = event.clientY - pieceRect.top
-
-      this.isDragging = true
-      piece.isDragging = true
-      this.draggedPiece = piece
-      this.selectedPiece = piece
-
-      this.dragVisual.active = true
-      this.dragVisual.style = {
-        ...this.getPieceBackground(piece),
-        width: (100 / this.gridSize) + '%',
-        height: (100 / this.gridSize) + '%',
-        position: 'absolute',
-        pointerEvents: 'none',
-        zIndex: 200,
-        opacity: 0.9,
-        boxShadow: '0 0 10px rgba(0, 0, 0, 0.3)',
-        left: (event.clientX - this.containerRect.left - this.dragOffset.x) + 'px',
-        top: (event.clientY - this.containerRect.top - this.dragOffset.y) + 'px'
-      }
-
-      event.preventDefault()
-    },
-
-    handleMouseMove (event) {
-      if (this.isDragging && this.dragVisual.active && this.containerRect) {
-        this.dragVisual.style.left = (event.clientX - this.containerRect.left - this.dragOffset.x) + 'px'
-        this.dragVisual.style.top = (event.clientY - this.containerRect.top - this.dragOffset.y) + 'px'
-
-        this.findPieceUnderMouse(event)
-      }
-    },
-
-    findPieceUnderMouse (event) {
-      const x = event.clientX - this.containerRect.left
-      const y = event.clientY - this.containerRect.top
-
-      const pieceWidth = this.containerRect.width / this.gridSize
-      const pieceHeight = this.containerRect.height / this.gridSize
-
-      const col = Math.floor(x / pieceWidth)
-      const row = Math.floor(y / pieceHeight)
-
-      if (col >= 0 && col < this.gridSize && row >= 0 && row < this.gridSize) {
-        const position = row * this.gridSize + col
-        const pieceAtPosition = this.pieces.find(p => p.currentPosition === position)
-
-        if (pieceAtPosition && this.draggedPiece && pieceAtPosition.id !== this.draggedPiece.id) {
-          this.pieces.forEach(p => {
-            if (p.id !== pieceAtPosition.id) {
-              p.isDragOver = false
-            }
-          })
-
-          pieceAtPosition.isDragOver = true
-          this.hoverPiece = pieceAtPosition
-        }
-      }
-    },
-
-    handleMouseLeave () {
-      if (this.isDragging) {
-        this.pieces.forEach(p => {
-          p.isDragOver = false
-        })
-        this.hoverPiece = null
-      }
-    },
-
-    dropPiece (targetPiece) {
-      if (this.isDragging && this.draggedPiece) {
-        if (this.hoverPiece && this.draggedPiece.id !== this.hoverPiece.id) {
-          this.swapPieces(this.draggedPiece, this.hoverPiece)
-        }
-        this.endDrag()
-      }
-    },
-
-    endDrag () {
-      if (this.isDragging) {
-        this.isDragging = false
-
-        if (this.draggedPiece) {
-          this.draggedPiece.isDragging = false
-          this.draggedPiece = null
-        }
-
-        this.pieces.forEach(p => {
-          p.isDragOver = false
-        })
-
-        this.hoverPiece = null
-        this.selectedPiece = null
-
-        this.dragVisual.active = false
-      }
-    },
-
-    swapPieces (piece1, piece2) {
-      const tempPosition = piece1.currentPosition
-      piece1.currentPosition = piece2.currentPosition
-      piece2.currentPosition = tempPosition
-
-      this.moveCount++
-
-      if (this.checkCompletion()) {
+      if (result.completed) {
         this.handleCompletion()
       }
     },
 
-    checkCompletion () {
-      return this.pieces.every(piece => piece.currentPosition === piece.correctPosition)
+    startDrag (event, piece) {
+      const result = this.dragService.startDrag(
+        event,
+        piece,
+        this.$refs.puzzleContainer,
+        this.gameLogic
+      )
+
+      if (result) {
+        this.selectionService.setSelectedPiece(piece)
+      }
+    },
+
+    handleMouseMove (event) {
+      const result = this.dragService.handleDragMove(event, this.gameLogic)
+
+      if (result) {
+        this.$forceUpdate()
+      }
+    },
+
+    findPieceUnderMouse (event) {
+      return this.dragService.findPieceUnderMouse(event, this.gameLogic)
+    },
+
+    handleMouseLeave () {
+      this.dragService.handleDragLeave(this.gameLogic)
+      this.$forceUpdate()
+    },
+
+    dropPiece (targetPiece) {
+      const completed = this.dragService.dropPiece(targetPiece, this.gameLogic)
+
+      if (completed) {
+        this.handleCompletion()
+      }
+
+      this.selectionService.clearSelection()
+      this.$forceUpdate()
+    },
+
+    endDrag () {
+      if (this.dragService.isCurrentlyDragging()) {
+        this.dragService.endDrag(this.gameLogic)
+        this.selectionService.clearSelection()
+        this.$forceUpdate()
+      }
     },
 
     handleCompletion () {
-      this.stopTimer()
+      this.timerService.stopTimer()
 
       this.$emit('level-completed', {
         ...this.level,
         stats: {
-          moves: this.moveCount,
-          time: this.elapsedTime
+          moves: this.gameLogic.moveCount,
+          time: this.timerService.getElapsedTime()
         }
       })
     },
 
     startTimer () {
-      this.startTime = Date.now()
-      this.elapsedTime = 0
-      this.timer = setInterval(() => {
-        this.elapsedTime = Math.floor((Date.now() - this.startTime) / 1000)
-      }, 1000)
+      this.timerService.startTimer(this.updateFormattedTime)
+    },
+
+    updateFormattedTime (time) {
+      this.formattedTime = this.timerService.formatTime(time)
     },
 
     stopTimer () {
-      if (this.timer) {
-        clearInterval(this.timer)
-        this.timer = null
-      }
-    },
-
-    formatTime (seconds) {
-      const minutes = Math.floor(seconds / 60)
-      const secs = seconds % 60
-      return `${minutes}:${secs.toString().padStart(2, '0')}`
+      this.timerService.stopTimer()
     }
   }
 }
