@@ -1,7 +1,15 @@
 <template>
   <div id="app">
-    <CampaignStatus v-if="!gameStarted" />
-    <div v-else>
+    <CampaignStatus v-if="!gameStarted && !gameEnded" />
+
+    <EndGame
+      v-if="gameEnded"
+      :userProgress="userProgress"
+      :totalLevels="totalLevels"
+      @restart-game="restartGame"
+    />
+
+    <div v-else-if="gameStarted">
       <FullImagePreview
         v-if="showFullImage"
         :image="currentLevel ? currentLevel.image : ''"
@@ -36,7 +44,8 @@ import FullImagePreview from './components/FullImagePreview.vue'
 import GameQuestion from './components/GameQuestion.vue'
 import GameBoard from './components/GameBoard.vue'
 import CompletedPuzzle from './components/CompletedPuzzle.vue'
-import { mapState, mapActions } from 'vuex'
+import EndGame from './components/EndGame.vue'
+import { mapState, mapActions, mapGetters } from 'vuex'
 
 export default {
   name: 'App',
@@ -45,17 +54,23 @@ export default {
     FullImagePreview,
     GameQuestion,
     GameBoard,
-    CompletedPuzzle
+    CompletedPuzzle,
+    EndGame
   },
   computed: {
     ...mapState('game', [
       'gameStarted',
+      'gameEnded',
       'showFullImage',
       'showCompletedPuzzle',
       'showQuestion',
       'completionTime',
       'currentLevel',
-      'currentQuestion'
+      'currentQuestion',
+      'userProgress'
+    ]),
+    ...mapGetters('game', [
+      'totalLevels'
     ])
   },
   created () {
@@ -67,7 +82,8 @@ export default {
       'handleAnswer',
       'startPuzzle',
       'handleLevelCompletion',
-      'continueAfterCompletion'
+      'continueAfterCompletion',
+      'restartGame'
     ])
   }
 }
@@ -82,5 +98,4 @@ export default {
   color: #2c3e50;
   margin-top: 60px;
 }
-
 </style>

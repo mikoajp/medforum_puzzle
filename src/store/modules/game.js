@@ -4,6 +4,7 @@ const state = {
   campaign: null,
   loading: true,
   gameStarted: false,
+  gameEnded: false,
   showFullImage: false,
   showCompletedPuzzle: false,
   showQuestion: false,
@@ -12,7 +13,8 @@ const state = {
   currentQuestion: null,
   userProgress: {},
   questions: [],
-  previewTime: 5000
+  previewTime: 5000, // 5 seconds preview
+  completedPuzzleTime: 10000 // 10 seconds to show completed puzzle
 }
 
 const mutations = {
@@ -24,6 +26,9 @@ const mutations = {
   },
   SET_GAME_STARTED (state, started) {
     state.gameStarted = started
+  },
+  SET_GAME_ENDED (state, ended) {
+    state.gameEnded = ended
   },
   SET_SHOW_FULL_IMAGE (state, show) {
     state.showFullImage = show
@@ -59,7 +64,7 @@ const actions = {
       const campaignData = await apiService.getCampaignData()
       commit('SET_CAMPAIGN', campaignData)
 
-      const questions = await apiService.getQuestions(35) // Game ID is hardcoded as 35
+      const questions = await apiService.getQuestions(35) // Game ID hardcoded as 35
       commit('SET_QUESTIONS', questions)
 
       const userProgress = apiService.getUserProgress()
@@ -72,8 +77,18 @@ const actions = {
 
   startNewGame ({ commit, state }) {
     commit('SET_GAME_STARTED', true)
+    commit('SET_GAME_ENDED', false)
     commit('SET_CURRENT_LEVEL', state.campaign.levels[0])
     commit('SET_SHOW_FULL_IMAGE', true)
+  },
+
+  restartGame ({ commit, dispatch }) {
+    const resetProgress = { correctAnswers: 0 }
+    commit('SET_USER_PROGRESS', resetProgress)
+    apiService.saveUserProgress(resetProgress)
+
+    commit('SET_GAME_ENDED', false)
+    dispatch('startNewGame')
   },
 
   startPuzzle ({ commit }) {
@@ -99,6 +114,31 @@ const actions = {
 
     commit('SET_COMPLETION_TIME', stats.time || 0)
     commit('SET_SHOW_COMPLETED_PUZZLE', true)
+
+    setTimeout(() => {
+      commit('SET_SHOW_COMPLETED_PUZZLE', false)
+
+      if (level === state.campaign.levels.length) {
+        setTimeout(() => {
+          commit('SET_GAME_STARTED', false)
+          commit('SET_GAME_ENDED', true)
+        }, 500)
+        return
+      }
+
+      if (state.questions.length > 0) {
+        const randomIndex = Math.floor(Math.random() * state.questions.length)
+        const randomQuestion = state.questions[randomIndex]
+        commit('SET_CURRENT_QUESTION', randomQuestion)
+        commit('SET_SHOW_QUESTION', true)
+
+        const updatedQuestions = [...state.questions]
+        updatedQuestions.splice(randomIndex, 1)
+        commit('SET_QUESTIONS', updatedQuestions)
+      } else {
+        dispatch('moveToNextLevel')
+      }
+    }, state.completedPuzzleTime)
   },
 
   continueAfterCompletion ({ commit, state, dispatch }) {
@@ -107,6 +147,7 @@ const actions = {
     if (state.currentLevel.level === state.campaign.levels.length) {
       setTimeout(() => {
         commit('SET_GAME_STARTED', false)
+        commit('SET_GAME_ENDED', true)
       }, 500)
       return
     }
@@ -142,6 +183,7 @@ const actions = {
     } else {
       setTimeout(() => {
         commit('SET_GAME_STARTED', false)
+        commit('SET_GAME_ENDED', true)
       }, 500)
     }
   },
@@ -168,6 +210,10 @@ const getters = {
   campaignEnded: state => {
     if (!state.campaign) return false
     return new Date() > new Date(state.campaign.date_end)
+  },
+  totalLevels: state => {
+    if (!state.campaign) return 0
+    return state.campaign.levels.length
   }
 }
 
