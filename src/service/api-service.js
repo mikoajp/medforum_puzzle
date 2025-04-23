@@ -15,8 +15,8 @@ const apiService = {
       date_start: '2025-02-16 00:00:00',
       date_end: '2025-05-30 23:59:59',
       levels: [
-        { level: 1, image: 'https://picsum.photos/600/600?random=1', elements: 9 },
-        { level: 2, image: 'https://picsum.photos/600/600?random=2', elements: 9 },
+        { level: 1, image: 'https://picsum.photos/600/600?random=1', elements: 4 },
+        { level: 2, image: 'https://picsum.photos/600/600?random=2', elements: 4 },
         { level: 3, image: 'https://picsum.photos/600/600?random=3', elements: 16 },
         { level: 4, image: 'https://picsum.photos/600/600?random=4', elements: 16 },
         { level: 5, image: 'https://picsum.photos/600/600?random=5', elements: 25 },

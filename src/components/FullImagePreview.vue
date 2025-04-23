@@ -25,7 +25,7 @@ export default {
   },
   data () {
     return {
-      countdown: 3,
+      countdown: 5,
       interval: null
     }
   },

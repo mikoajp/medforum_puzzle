@@ -5,12 +5,14 @@ const state = {
   loading: true,
   gameStarted: false,
   showFullImage: false,
+  showCompletedPuzzle: false,
   showQuestion: false,
+  completionTime: 0,
   currentLevel: null,
   currentQuestion: null,
   userProgress: {},
   questions: [],
-  previewTime: 3000 // 3 seconds preview
+  previewTime: 5000
 }
 
 const mutations = {
@@ -26,8 +28,14 @@ const mutations = {
   SET_SHOW_FULL_IMAGE (state, show) {
     state.showFullImage = show
   },
+  SET_SHOW_COMPLETED_PUZZLE (state, show) {
+    state.showCompletedPuzzle = show
+  },
   SET_SHOW_QUESTION (state, show) {
     state.showQuestion = show
+  },
+  SET_COMPLETION_TIME (state, time) {
+    state.completionTime = time
   },
   SET_CURRENT_LEVEL (state, level) {
     state.currentLevel = level
@@ -89,7 +97,14 @@ const actions = {
     commit('SET_USER_PROGRESS', progress)
     apiService.saveUserProgress(progress)
 
-    if (level === state.campaign.levels.length) {
+    commit('SET_COMPLETION_TIME', stats.time || 0)
+    commit('SET_SHOW_COMPLETED_PUZZLE', true)
+  },
+
+  continueAfterCompletion ({ commit, state, dispatch }) {
+    commit('SET_SHOW_COMPLETED_PUZZLE', false)
+
+    if (state.currentLevel.level === state.campaign.levels.length) {
       setTimeout(() => {
         commit('SET_GAME_STARTED', false)
       }, 500)
@@ -101,6 +116,7 @@ const actions = {
       const randomQuestion = state.questions[randomIndex]
       commit('SET_CURRENT_QUESTION', randomQuestion)
       commit('SET_SHOW_QUESTION', true)
+
       const updatedQuestions = [...state.questions]
       updatedQuestions.splice(randomIndex, 1)
       commit('SET_QUESTIONS', updatedQuestions)

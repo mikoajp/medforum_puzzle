@@ -141,10 +141,6 @@ export default class DragService {
     return this.dragVisual
   }
 
-  getDraggedPiece () {
-    return this.draggedPiece
-  }
-
   getHoverPiece () {
     return this.hoverPiece
   }

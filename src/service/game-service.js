@@ -3,7 +3,6 @@ export default class GameLogic {
     this.level = levelData
     this.gridSize = Math.sqrt(levelData.elements)
     this.pieces = []
-    this.moveCount = 0
     this.startTime = null
     this.elapsedTime = 0
     this.timer = null
@@ -44,7 +43,6 @@ export default class GameLogic {
       this.shufflePieces()
     }
 
-    this.moveCount = 0
     this.isCompleted = false
   }
 
@@ -52,8 +50,6 @@ export default class GameLogic {
     const tempPosition = piece1.currentPosition
     piece1.currentPosition = piece2.currentPosition
     piece2.currentPosition = tempPosition
-
-    this.moveCount++
 
     if (this.checkCompletion()) {
       this.isCompleted = true

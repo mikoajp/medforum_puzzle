@@ -1,16 +1,18 @@
 <template>
   <div class="game-question">
-    <h2>Pytanie przed poziomem {{ nextLevel }}</h2>
-    <div class="question-text" v-html="question.question"></div>
-    <div class="answers">
-      <div
-        v-for="answer in question.answers"
-        :key="answer.id"
-        class="answer"
-        @click="selectAnswer(answer.id)"
-        v-html="formatAnswer(answer)"
+    <!-- Wyświetlamy pytanie z opcjami odpowiedzi -->
+    <div class="question-content" v-html="question.question"></div>
+
+    <!-- Przyciski do wyboru odpowiedzi -->
+    <div class="answer-buttons">
+      <button
+        v-for="letter in ['A', 'B', 'C']"
+        :key="letter"
+        class="answer-button"
+        @click="selectAnswer(letter)"
       >
-      </div>
+        {{ letter }}
+      </button>
     </div>
   </div>
 </template>
@@ -30,12 +32,6 @@ export default {
   methods: {
     selectAnswer (answerId) {
       this.$emit('answer-selected', answerId)
-    },
-    formatAnswer (answer) {
-      if (answer.text.includes('<')) {
-        return answer.text
-      }
-      return `<b>${answer.id}.</b> ${answer.text}`
     }
   }
 }
@@ -43,43 +39,46 @@ export default {
 
 <style scoped>
 .game-question {
-  max-width: 600px;
+  max-width: 500px;
   margin: 0 auto;
-  padding: 20px;
-  text-align: center;
+  padding: 15px 15px 20px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  font-family: Arial, sans-serif;
 }
 
-.question-text {
-  font-size: 1.2em;
-  margin: 20px 0;
-  padding: 15px;
-  background: #f5f5f5;
-  border-radius: 5px;
+.question-content {
+  margin-bottom: 20px;
   text-align: left;
 }
 
-.answers {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-  margin-top: 20px;
+.answer-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  max-width: 300px;
+  margin: 0 auto;
 }
 
-.answer {
-  padding: 15px;
-  background: #42b983;
+.answer-button {
+  width: 60px;
+  height: 40px;
+  background-color: #4CAF50; /* Zielony kolor jak na obrazku */
   color: white;
+  border: none;
   border-radius: 5px;
+  font-size: 1.2em;
+  font-weight: bold;
   cursor: pointer;
-  transition: background 0.2s;
-  text-align: left;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.answer:hover {
-  background: #369f6e;
+.answer-button:hover {
+  background-color: #45a049;
 }
 
-/* To jest trick aby style z v-html działały */
+/* Ważne: Te style pozwalają na działanie stylów inline w v-html */
 ::v-deep div[style] {
   display: block;
 }
@@ -87,4 +86,5 @@ export default {
 ::v-deep b {
   font-weight: bold;
 }
+
 </style>
