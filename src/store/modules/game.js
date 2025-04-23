@@ -13,8 +13,8 @@ const state = {
   currentQuestion: null,
   userProgress: {},
   questions: [],
-  previewTime: 5000, // 5 seconds preview
-  completedPuzzleTime: 10000 // 10 seconds to show completed puzzle
+  previewTime: 5000,
+  completedPuzzleTime: 10000
 }
 
 const mutations = {
@@ -64,7 +64,7 @@ const actions = {
       const campaignData = await apiService.getCampaignData()
       commit('SET_CAMPAIGN', campaignData)
 
-      const questions = await apiService.getQuestions(35) // Game ID hardcoded as 35
+      const questions = await apiService.getQuestions(35)
       commit('SET_QUESTIONS', questions)
 
       const userProgress = apiService.getUserProgress()
@@ -119,10 +119,8 @@ const actions = {
       commit('SET_SHOW_COMPLETED_PUZZLE', false)
 
       if (level === state.campaign.levels.length) {
-        setTimeout(() => {
-          commit('SET_GAME_STARTED', false)
-          commit('SET_GAME_ENDED', true)
-        }, 500)
+        commit('SET_GAME_STARTED', false)
+        commit('SET_GAME_ENDED', true)
         return
       }
 
@@ -145,10 +143,8 @@ const actions = {
     commit('SET_SHOW_COMPLETED_PUZZLE', false)
 
     if (state.currentLevel.level === state.campaign.levels.length) {
-      setTimeout(() => {
-        commit('SET_GAME_STARTED', false)
-        commit('SET_GAME_ENDED', true)
-      }, 500)
+      commit('SET_GAME_STARTED', false)
+      commit('SET_GAME_ENDED', true)
       return
     }
 
@@ -167,9 +163,9 @@ const actions = {
   },
 
   handleAnswer ({ commit, state, dispatch }, answerId) {
-    commit('SET_SHOW_QUESTION', false)
-
     const isCorrect = answerId === state.currentQuestion.correct_answer_id
+
+    commit('SET_SHOW_QUESTION', false)
 
     if (isCorrect) {
       const progress = {
@@ -181,10 +177,8 @@ const actions = {
 
       dispatch('moveToNextLevel')
     } else {
-      setTimeout(() => {
-        commit('SET_GAME_STARTED', false)
-        commit('SET_GAME_ENDED', true)
-      }, 500)
+      commit('SET_GAME_STARTED', false)
+      commit('SET_GAME_ENDED', true)
     }
   },
 
