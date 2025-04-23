@@ -8,6 +8,13 @@
         :levelNumber="currentLevel ? currentLevel.level : 1"
         @start-puzzle="startPuzzle"
       />
+      <CompletedPuzzle
+        v-else-if="showCompletedPuzzle"
+        :image="currentLevel ? currentLevel.image : ''"
+        :completionTime="completionTime"
+        :countdownDuration="10"
+        @continue="continueAfterCompletion"
+      />
       <GameQuestion
         v-else-if="showQuestion"
         :question="currentQuestion"
@@ -28,6 +35,7 @@ import CampaignStatus from './components/CampaignStatus.vue'
 import FullImagePreview from './components/FullImagePreview.vue'
 import GameQuestion from './components/GameQuestion.vue'
 import GameBoard from './components/GameBoard.vue'
+import CompletedPuzzle from './components/CompletedPuzzle.vue'
 import { mapState, mapActions } from 'vuex'
 
 export default {
@@ -36,13 +44,16 @@ export default {
     CampaignStatus,
     FullImagePreview,
     GameQuestion,
-    GameBoard
+    GameBoard,
+    CompletedPuzzle
   },
   computed: {
     ...mapState('game', [
       'gameStarted',
       'showFullImage',
+      'showCompletedPuzzle',
       'showQuestion',
+      'completionTime',
       'currentLevel',
       'currentQuestion'
     ])
@@ -55,7 +66,8 @@ export default {
       'initGame',
       'handleAnswer',
       'startPuzzle',
-      'handleLevelCompletion'
+      'handleLevelCompletion',
+      'continueAfterCompletion'
     ])
   }
 }

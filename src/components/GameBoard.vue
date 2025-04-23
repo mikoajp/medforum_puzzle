@@ -3,7 +3,6 @@
     <h2>Poziom {{ level.level }}</h2>
 
     <div class="game-info">
-      <div class="moves-counter">Ruchy: {{ gameLogic.moveCount }}</div>
       <div class="timer">Czas: {{ formattedTime }}</div>
     </div>
 
@@ -41,7 +40,6 @@
       ></div>
     </div>
 
-    <button @click="reShufflePieces" class="shuffle-button">Przetasuj ponownie</button>
   </div>
 </template>
 
@@ -82,12 +80,6 @@ export default {
     window.removeEventListener('mouseup', this.endDrag)
   },
   methods: {
-    reShufflePieces () {
-      this.gameLogic.shufflePieces()
-      this.selectionService.clearSelection()
-      this.timerService.restartTimer(this.updateFormattedTime)
-    },
-
     getPiecePositionStyle (piece) {
       const position = this.gameLogic.getPiecePosition(piece)
 
@@ -139,10 +131,6 @@ export default {
       }
     },
 
-    findPieceUnderMouse (event) {
-      return this.dragService.findPieceUnderMouse(event, this.gameLogic)
-    },
-
     handleMouseLeave () {
       this.dragService.handleDragLeave(this.gameLogic)
       this.$forceUpdate()
@@ -169,12 +157,12 @@ export default {
 
     handleCompletion () {
       this.timerService.stopTimer()
+      const elapsedTime = this.timerService.getElapsedTime()
 
       this.$emit('level-completed', {
         ...this.level,
         stats: {
-          moves: this.gameLogic.moveCount,
-          time: this.timerService.getElapsedTime()
+          time: elapsedTime
         }
       })
     },
@@ -284,21 +272,6 @@ export default {
   box-shadow: 0 0 15px rgba(66, 185, 131, 0.7);
   cursor: grabbing;
   transition: transform 0.1s ease;
-}
-
-.shuffle-button {
-  margin-top: 15px;
-  padding: 8px 16px;
-  background-color: #42b983;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.shuffle-button:hover {
-  background-color: #369f6e;
 }
 
 </style>
