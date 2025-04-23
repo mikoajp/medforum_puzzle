@@ -114,29 +114,6 @@ const actions = {
 
     commit('SET_COMPLETION_TIME', stats.time || 0)
     commit('SET_SHOW_COMPLETED_PUZZLE', true)
-
-    setTimeout(() => {
-      commit('SET_SHOW_COMPLETED_PUZZLE', false)
-
-      if (level === state.campaign.levels.length) {
-        commit('SET_GAME_STARTED', false)
-        commit('SET_GAME_ENDED', true)
-        return
-      }
-
-      if (state.questions.length > 0) {
-        const randomIndex = Math.floor(Math.random() * state.questions.length)
-        const randomQuestion = state.questions[randomIndex]
-        commit('SET_CURRENT_QUESTION', randomQuestion)
-        commit('SET_SHOW_QUESTION', true)
-
-        const updatedQuestions = [...state.questions]
-        updatedQuestions.splice(randomIndex, 1)
-        commit('SET_QUESTIONS', updatedQuestions)
-      } else {
-        dispatch('moveToNextLevel')
-      }
-    }, state.completedPuzzleTime)
   },
 
   continueAfterCompletion ({ commit, state, dispatch }) {
